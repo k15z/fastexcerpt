@@ -46,13 +46,16 @@ class FastExcerpt:
 
     def excerpts(self, doc: str, num_excerpts: int = 1) -> typing.List[str]:
         excerpts = enumerate_excerpts(doc, self.window_size)
-        y_pred = self.model.predict_proba(excerpts)
-        excerpt_to_score: typing.Counter = Counter({k: np.max(v) for k, v in zip(excerpts, y_pred)})
+        y_pred = np.max(self.model.predict_proba(excerpts), axis=1)
 
-        excerpts = []
-        for excerpt, _ in excerpt_to_score.most_common(num_excerpts):
-            excerpts.append(excerpt)
-        return excerpts
+        results = []
+        for _ in range(num_excerpts):
+            idx = np.argmax(y_pred)
+            start = max(0, idx - self.window_size // 2)
+            end = min(start + self.window_size, len(excerpts))
+            y_pred[start:end] = float("-inf")
+            results.append(excerpts[idx])
+        return results
 
 
 class SubwordFastExcerpt:

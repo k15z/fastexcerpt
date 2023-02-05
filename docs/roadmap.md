@@ -30,10 +30,12 @@ the roadmap:
     - For the full FF dataset, we probably won't be able to hold everything
       in memory without reserving a high-powered AWS instance.
  - Add speed to the benchmark report
-
-## v1.0 - Usability
-
  - [C++/Rust] Consider rewriting some computationally intensive parts and 
    adding Python bindings.
- - Publish pre-trained models for general categories (i.e. Humor/Drama) as well
-   as a large unsupervised model trained on our entire dataset.
+
+## v0.3 - Functionality
+
+  - Add support for other supervised losses
+  - Add support for unsupervised losses
+  - Publish pre-trained models for general categories (i.e. Humor/Drama) as well
+    as a large unsupervised model trained on our entire dataset.
