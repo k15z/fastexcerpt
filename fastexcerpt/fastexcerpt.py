@@ -3,13 +3,13 @@ import typing
 from collections import Counter
 
 import numpy as np
-from tqdm import tqdm
+from bpemb import BPEmb
 from nltk.tokenize import sent_tokenize
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from bpemb import BPEmb
 from sklearn.metrics import roc_auc_score
+from sklearn.pipeline import Pipeline
+from tqdm import tqdm
 
 
 def enumerate_excerpts(doc: str, window_size: int) -> typing.List[str]:
@@ -47,9 +47,7 @@ class FastExcerpt:
     def excerpts(self, doc: str, num_excerpts: int = 1) -> typing.List[str]:
         excerpts = enumerate_excerpts(doc, self.window_size)
         y_pred = self.model.predict_proba(excerpts)
-        excerpt_to_score: typing.Counter = Counter(
-            {k: np.max(v) for k, v in zip(excerpts, y_pred)}
-        )
+        excerpt_to_score: typing.Counter = Counter({k: np.max(v) for k, v in zip(excerpts, y_pred)})
 
         excerpts = []
         for excerpt, _ in excerpt_to_score.most_common(num_excerpts):
@@ -80,9 +78,7 @@ class SubwordFastExcerpt:
         excerpts = enumerate_excerpts(doc, self.window_size)
         embeddings = [self.encoder.embed(x).mean(axis=0) for x in excerpts]
         y_pred = self.model.predict_proba(embeddings)
-        excerpt_to_score: typing.Counter = Counter(
-            {k: np.max(v) for k, v in zip(excerpts, y_pred)}
-        )
+        excerpt_to_score: typing.Counter = Counter({k: np.max(v) for k, v in zip(excerpts, y_pred)})
 
         excerpts = []
         for excerpt, _ in excerpt_to_score.most_common(num_excerpts):

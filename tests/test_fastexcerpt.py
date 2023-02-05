@@ -24,6 +24,7 @@ def test_fastexcerpt():
         "This is great."
     ]
 
+
 def test_subword_fastexcerpt():
     docs = [
         "This is great. Lots of short sentences. Let's go!",
