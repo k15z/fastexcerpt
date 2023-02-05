@@ -10,6 +10,16 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
 from tqdm import tqdm
+from random import randint
+
+
+def sample_excerpts(doc: str, window_size: int, sampling_rate: float) -> typing.List[str]:
+    excerpts = []
+    sentences = sent_tokenize(doc)
+    for _ in range(int(len(sentences) * sampling_rate)):
+        i = randint(window_size, len(sentences))
+        excerpts.append(" ".join(sentences[i - window_size : i]))
+    return excerpts
 
 
 def enumerate_excerpts(doc: str, window_size: int) -> typing.List[str]:
@@ -26,11 +36,20 @@ class FastExcerpt:
         self.hash_size = hash_size
         self.window_size = window_size
 
-    def fit(self, docs: typing.List[str], labels: typing.List[int]) -> None:
+    def fit(
+        self,
+        docs: typing.List[str],
+        labels: typing.List[int],
+        sampling_rate: typing.Optional[float] = None,
+    ) -> None:
         X, y = [], []
         iterator = zip(docs, tqdm(labels)) if self.verbose else zip(docs, labels)
         for doc, label in iterator:
-            for excerpt in enumerate_excerpts(doc, self.window_size):
+            if sampling_rate:
+                excerpts = sample_excerpts(doc, self.window_size, sampling_rate)
+            else:
+                excerpts = enumerate_excerpts(doc, self.window_size)
+            for excerpt in excerpts:
                 X.append(excerpt)
                 y.append(label)
 

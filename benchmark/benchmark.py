@@ -37,6 +37,9 @@ train_docs, test_docs, train_labels, test_labels = train_test_split(docs, labels
 fe = FastExcerpt(verbose=True)
 fe.fit(train_docs, train_labels)
 
+fe2 = FastExcerpt(verbose=True)
+fe2.fit(train_docs, train_labels, sampling_rate=0.1)
+
 
 def evaluate(X_train, X_test, y_train, y_test):
     model = Pipeline(
@@ -48,16 +51,32 @@ def evaluate(X_train, X_test, y_train, y_test):
     model.fit(X_train, y_train)
     return roc_auc_score(y_test, model.predict(X_test))
 
+
 for num_excerpts in [1, 3, 5, 10]:
     # Build a new training dataset for the downstream task
-    train_excerpt_random = [" ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in train_docs]
+    train_excerpt_random = [
+        " ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in train_docs
+    ]
     train_excerpt_model = [" ".join(fe.excerpts(doc, num_excerpts)) for doc in train_docs]
+    train_excerpt_model2 = [" ".join(fe2.excerpts(doc, num_excerpts)) for doc in train_docs]
 
-    test_excerpt_random = [" ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in test_docs]
+    test_excerpt_random = [
+        " ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in test_docs
+    ]
     test_excerpt_model = [" ".join(fe.excerpts(doc, num_excerpts)) for doc in test_docs]
+    test_excerpt_model2 = [" ".join(fe2.excerpts(doc, num_excerpts)) for doc in test_docs]
 
     # Compare the performance of models trained on random excerpts vs selected excerpts
     print("Num Excerpts:", num_excerpts)
-    print("  Random:", evaluate(train_excerpt_random, test_excerpt_random, train_labels, test_labels))
-    print("  FastExcerpt:", evaluate(train_excerpt_model, test_excerpt_model, train_labels, test_labels))
+    print(
+        "  Random:", evaluate(train_excerpt_random, test_excerpt_random, train_labels, test_labels)
+    )
+    print(
+        "  FastExcerpt:",
+        evaluate(train_excerpt_model, test_excerpt_model, train_labels, test_labels),
+    )
+    print(
+        "  FastExcerpt2:",
+        evaluate(train_excerpt_model2, test_excerpt_model2, train_labels, test_labels),
+    )
     print()
