@@ -18,10 +18,10 @@ As an example, consider predicting whether a novel contains "time travel" as a p
    of applications.
 
 The goal of `FastExcerpt` is to combine the strengths of these approaches by using fast models to
-efficiently extract relevant excerpts fur further analysis.
+efficiently extract relevant excerpts for further analysis.
 
 ## Usage
-Construct a FastExcerpt obejct:
+Construct a FastExcerpt object:
 
 ```python
 fe = FastExcerpt(

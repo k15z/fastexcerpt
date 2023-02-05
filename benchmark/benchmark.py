@@ -1,13 +1,26 @@
 """Simple benchmarking for the excerpt models.
 
-Random: 0.5039158476658476
-FastExcerpt: 0.628762285012285
-SubwordFastExcerpt: 0.5291769041769042
+Num Excerpts: 1
+  Random: 0.5796737683530137
+  FastExcerpt: 0.641636210369364
+
+Num Excerpts: 3
+  Random: 0.6397643661794605
+  FastExcerpt: 0.6802500333497639
+
+Num Excerpts: 5
+  Random: 0.6717437148703995
+  FastExcerpt: 0.694652873898157
+
+Num Excerpts: 10
+  Random: 0.6882350548118742
+  FastExcerpt: 0.70905571444655
 """
 import bz2
 import json
 from random import choices
 
+import numpy as np
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
@@ -25,20 +38,18 @@ with bz2.open("/Users/kevz/Downloads/ao3.jsonl.bz2", "rt") as fin:
         if len(work["content"].split(" ")) <= 1000:
             continue
         docs.append(work["content"])
-        if "Explicit" in work["tags"]["rating"]:
+        if "F/M" in work["tags"]["category"]:
             labels.append(1)
         else:
             labels.append(0)
-        if len(labels) == 1000:
+        if len(labels) == 10000:
             break
 train_docs, test_docs, train_labels, test_labels = train_test_split(docs, labels)
+print(np.mean(labels))
 
 # Train an excerpt model
 fe = FastExcerpt(verbose=True)
-fe.fit(train_docs, train_labels)
-
-fe2 = FastExcerpt(verbose=True)
-fe2.fit(train_docs, train_labels, sampling_rate=0.1)
+fe.fit(train_docs, train_labels, sampling_rate=None)
 
 
 def evaluate(X_train, X_test, y_train, y_test):
@@ -58,13 +69,11 @@ for num_excerpts in [1, 3, 5, 10]:
         " ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in train_docs
     ]
     train_excerpt_model = [" ".join(fe.excerpts(doc, num_excerpts)) for doc in train_docs]
-    train_excerpt_model2 = [" ".join(fe2.excerpts(doc, num_excerpts)) for doc in train_docs]
 
     test_excerpt_random = [
         " ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in test_docs
     ]
     test_excerpt_model = [" ".join(fe.excerpts(doc, num_excerpts)) for doc in test_docs]
-    test_excerpt_model2 = [" ".join(fe2.excerpts(doc, num_excerpts)) for doc in test_docs]
 
     # Compare the performance of models trained on random excerpts vs selected excerpts
     print("Num Excerpts:", num_excerpts)
@@ -74,9 +83,5 @@ for num_excerpts in [1, 3, 5, 10]:
     print(
         "  FastExcerpt:",
         evaluate(train_excerpt_model, test_excerpt_model, train_labels, test_labels),
-    )
-    print(
-        "  FastExcerpt2:",
-        evaluate(train_excerpt_model2, test_excerpt_model2, train_labels, test_labels),
     )
     print()

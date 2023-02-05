@@ -3,7 +3,7 @@
 
 [![PyPI version](https://badge.fury.io/py/fastexcerpt.svg)](https://badge.fury.io/py/fastexcerpt)
 ![versions](https://img.shields.io/pypi/pyversions/fastexcerpt.svg)
-[![GitHub license](https://img.shields.io/github/license/mgancita/fastexcerpt.svg)](https://github.com/mgancita/fastexcerpt/blob/main/LICENSE)
+[![GitHub license](https://img.shields.io/github/license/k15z/fastexcerpt.svg)](https://github.com/k15z/fastexcerpt/blob/main/LICENSE)
 
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
