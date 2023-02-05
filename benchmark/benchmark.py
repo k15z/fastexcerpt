@@ -1,87 +1,195 @@
-"""Simple benchmarking for the excerpt models.
+"""Luigi-based benchmark runner.
 
-Num Excerpts: 1
-  Random: 0.5796737683530137
-  FastExcerpt: 0.641636210369364
+The main entrypoint is:
 
-Num Excerpts: 3
-  Random: 0.6397643661794605
-  FastExcerpt: 0.6802500333497639
+> luigi --module benchmark.benchmark BenchmarkReport
 
-Num Excerpts: 5
-  Random: 0.6717437148703995
-  FastExcerpt: 0.694652873898157
+Inside BenchmarkReport, various default methods for generating excerpts 
+are configured:
 
-Num Excerpts: 10
-  Random: 0.6882350548118742
-  FastExcerpt: 0.70905571444655
+```
+EvaluateExcerpts(config={
+    target: "predict_category",
+    method: "FastExcerpt",
+    window_size: ...
+})
+```
+
+And the final report summarizes the performance.
 """
+import os
 import bz2
+import luigi
+import shutil
 import json
-from random import choices
-
-import numpy as np
+from random import random, choices
+import tempfile
+from tqdm import tqdm
+from fastexcerpt import FastExcerpt
+from fastexcerpt.fastexcerpt import enumerate_excerpts
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
-from fastexcerpt import FastExcerpt
-from fastexcerpt.fastexcerpt import enumerate_excerpts
-
-# Extract some data for testing
-docs, labels = [], []
-with bz2.open("/Users/kevz/Downloads/ao3.jsonl.bz2", "rt") as fin:
-    for line in fin:
-        work = json.loads(line)
-        if len(work["content"].split(" ")) <= 1000:
-            continue
-        docs.append(work["content"])
-        if "Explicit" in work["tags"]["rating"]:
-            labels.append(1)
-        else:
-            labels.append(0)
-        if len(labels) == 10000:
-            break
-train_docs, test_docs, train_labels, test_labels = train_test_split(docs, labels)
-print(np.mean(labels))
-
-# Train an excerpt model
-fe = FastExcerpt(verbose=True)
-fe.fit(train_docs, train_labels, sampling_rate=None)
+ROOT_DIR = "/Users/kevz/Downloads/"
 
 
-def evaluate(X_train, X_test, y_train, y_test):
-    model = Pipeline(
-        [
-            ("vec", HashingVectorizer()),
-            ("clf", LogisticRegression()),
+class TrainTestSplit(luigi.Task):
+
+    target = "predict_category"
+
+    def output(self):
+        return {
+            "train": luigi.LocalTarget(os.path.join(ROOT_DIR, f"data/{self.target}_train.jsonl")),
+            "test": luigi.LocalTarget(os.path.join(ROOT_DIR, f"data/{self.target}_test.jsonl")),
+        }
+
+    def run(self):
+        train = tempfile.NamedTemporaryFile("wt")
+        test = tempfile.NamedTemporaryFile("wt")
+        with bz2.open(os.path.join(ROOT_DIR, "ao3.jsonl.bz2"), "rt") as fin:
+            for line in tqdm(fin):
+                work = json.loads(line)
+                if len(work["content"].split(" ")) <= 1000:
+                    continue
+                row = json.dumps(
+                    {
+                        "label": 1 if "F/M" in work["tags"]["category"] else 0,
+                        "content": work["content"],
+                    }
+                )
+                if random() < 0.8:
+                    train.write(row + "\n")
+                else:
+                    test.write(row + "\n")
+                if random() < 0.0001:
+                    break
+        train.flush()
+        test.flush()
+        shutil.move(train.name, self.output()["train"].path)
+        shutil.move(test.name, self.output()["test"].path)
+
+
+class ExtractExcerpts(luigi.Task):
+
+    method = luigi.Parameter("random")
+    num_excerpts = luigi.IntParameter(5)
+
+    def output(self):
+        return {
+            "train": luigi.LocalTarget(
+                os.path.join(ROOT_DIR, f"excerpts/{self.method}_{self.num_excerpts}_train.jsonl")
+            ),
+            "test": luigi.LocalTarget(
+                os.path.join(ROOT_DIR, f"excerpts/{self.method}_{self.num_excerpts}_test.jsonl")
+            ),
+        }
+
+    def requires(self):
+        return TrainTestSplit()
+
+    def run(self):
+        train = tempfile.NamedTemporaryFile("wt")
+        test = tempfile.NamedTemporaryFile("wt")
+
+        if self.method == "random":
+            with open(self.input()["train"].path, "rt") as fin:
+                for line in tqdm(fin, "Random"):
+                    work = json.loads(line)
+                    excerpts = enumerate_excerpts(work["content"], 5)
+                    if len(excerpts) > self.num_excerpts:
+                        excerpts = choices(excerpts, k=self.num_excerpts)
+                    train.write(
+                        json.dumps({"label": work["label"], "text": " ".join(excerpts)}) + "\n"
+                    )
+
+            with open(self.input()["test"].path, "rt") as fin:
+                for line in tqdm(fin):
+                    work = json.loads(line)
+                    excerpts = enumerate_excerpts(work["content"], 5)
+                    excerpts = choices(excerpts, k=self.num_excerpts)
+                    test.write(
+                        json.dumps({"label": work["label"], "text": " ".join(excerpts)}) + "\n"
+                    )
+
+        elif self.method == "fastexcerpt":
+            with open(self.input()["train"].path, "rt") as fin:
+                docs, labels = [], []
+                for line in tqdm(fin, "FastExcerpt"):
+                    work = json.loads(line)
+                    docs.append(work["content"])
+                    labels.append(work["label"])
+                fe = FastExcerpt(verbose=True)
+                fe.fit(docs, labels)
+
+                for doc, label in zip(docs, labels):
+                    train.write(
+                        json.dumps({"label": label, "text": " ".join(fe.excerpts(doc))}) + "\n"
+                    )
+
+            with open(self.input()["test"].path, "rt") as fin:
+                for line in tqdm(fin):
+                    work = json.loads(line)
+                    test.write(
+                        json.dumps(
+                            {"label": work["label"], "text": " ".join(fe.excerpts(work["content"]))}
+                        )
+                        + "\n"
+                    )
+
+        train.flush()
+        test.flush()
+        shutil.move(train.name, self.output()["train"].path)
+        shutil.move(test.name, self.output()["test"].path)
+
+
+class EvaluteExcerpts(luigi.Task):
+
+    method = luigi.Parameter("random")
+    num_excerpts = luigi.IntParameter(5)
+
+    def output(self):
+        return luigi.LocalTarget(
+            os.path.join(ROOT_DIR, f"results/{self.method}_{self.num_excerpts}.json")
+        )
+
+    def requires(self):
+        return ExtractExcerpts(self.method, self.num_excerpts)
+
+    def run(self):
+        model = Pipeline(
+            [
+                ("vec", HashingVectorizer()),
+                ("clf", LogisticRegression()),
+            ]
+        )
+        result = {}
+
+        with open(self.input()["train"].path, "rt") as fin:
+            X, y = [], []
+            for line in fin:
+                work = json.loads(line)
+                X.append(work["text"])
+                y.append(work["label"])
+            model.fit(X, y)
+
+        with open(self.input()["test"].path, "rt") as fin:
+            X, y = [], []
+            for line in fin:
+                work = json.loads(line)
+                X.append(work["text"])
+                y.append(work["label"])
+            print(len(X))
+            result["test_auroc"] = roc_auc_score(y, model.predict(X))
+
+        with self.output().open("w") as fout:
+            json.dump(result, fout, indent=2)
+
+
+class BenchmarkReport(luigi.Task):
+    def requires(self):
+        return [
+            EvaluteExcerpts("random", 1),
+            EvaluteExcerpts("fastexcerpt", 1),
         ]
-    )
-    model.fit(X_train, y_train)
-    return roc_auc_score(y_test, model.predict(X_test))
-
-
-for num_excerpts in [1, 3, 5, 10]:
-    # Build a new training dataset for the downstream task
-    train_excerpt_random = [
-        " ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in train_docs
-    ]
-    train_excerpt_model = [" ".join(fe.excerpts(doc, num_excerpts)) for doc in train_docs]
-
-    test_excerpt_random = [
-        " ".join(choices(enumerate_excerpts(doc, 5), k=num_excerpts)) for doc in test_docs
-    ]
-    test_excerpt_model = [" ".join(fe.excerpts(doc, num_excerpts)) for doc in test_docs]
-
-    # Compare the performance of models trained on random excerpts vs selected excerpts
-    print("Num Excerpts:", num_excerpts)
-    print(
-        "  Random:", evaluate(train_excerpt_random, test_excerpt_random, train_labels, test_labels)
-    )
-    print(
-        "  FastExcerpt:",
-        evaluate(train_excerpt_model, test_excerpt_model, train_labels, test_labels),
-    )
-    print()

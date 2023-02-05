@@ -17,18 +17,16 @@ the roadmap:
     - hypothesis: for our model, we can achieve same accuracy with fewer
       excerpts than random. furthermore, we asymptotically approach the 
       accuracy that can be achieved by looking at the full work
- - Add different selection methods?
-     - greedy?
-     - greedy non-overlapping?
-     - maximal score via dynamic programming?
- - [Python] Start optimizing for speed - sliding window optimizations, etc.
+ - Implement support for generators / batch training
+    - For the full FF dataset, we probably won't be able to hold everything
+      in memory without reserving a high-powered AWS instance.
+ - Enable iterative refinement
+ - Implement benchmarks via Luigi for ease of running?
  - Finalize API design and prepare a release.
 
 ## v0.2 - Scalability
 
- - Implement support for generators / batch training
-    - For the full FF dataset, we probably won't be able to hold everything
-      in memory without reserving a high-powered AWS instance.
+ - [Python] Start optimizing for speed - sliding window optimizations, etc.
  - Add speed to the benchmark report
 
 ## v0.3 - Functionality
@@ -37,3 +35,6 @@ the roadmap:
   - Add support for unsupervised losses
   - Publish pre-trained models for general categories (i.e. Humor/Drama) as well
     as a large unsupervised model trained on our entire dataset.
+ - Add a basic cli
+    - fastexcerpt train --dataset ao3.jsonl.bz2 --model model.bin
+    - fastexcerpt excerpts --model model.bin --path_to_file example.txt
