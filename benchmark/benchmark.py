@@ -21,6 +21,7 @@ import os
 import bz2
 import luigi
 import shutil
+import pandas as pd
 import json
 from random import random, choices
 import tempfile
@@ -31,18 +32,29 @@ from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
+import enum
 
 ROOT_DIR = "/Users/kevz/Downloads/"
 
 
-class TrainTestSplit(luigi.Task):
+class PredictionTarget(enum.Enum):
+    Category_FM = "category_FM"
+    Rating_Explicit = "rating_explicit"
 
-    target = "predict_category"
+
+class TrainTestSplit(luigi.Task):
+    """Extract labels and split into train/test file."""
+
+    target = luigi.EnumParameter(enum=PredictionTarget)
 
     def output(self):
         return {
-            "train": luigi.LocalTarget(os.path.join(ROOT_DIR, f"data/{self.target}_train.jsonl")),
-            "test": luigi.LocalTarget(os.path.join(ROOT_DIR, f"data/{self.target}_test.jsonl")),
+            "train": luigi.LocalTarget(
+                os.path.join(ROOT_DIR, f"data/{self.target.value}_train.jsonl")
+            ),
+            "test": luigi.LocalTarget(
+                os.path.join(ROOT_DIR, f"data/{self.target.value}_test.jsonl")
+            ),
         }
 
     def run(self):
@@ -53,17 +65,24 @@ class TrainTestSplit(luigi.Task):
                 work = json.loads(line)
                 if len(work["content"].split(" ")) <= 1000:
                     continue
+
+                if self.target == PredictionTarget.Category_FM:
+                    label = 1 if "F/M" in work["tags"]["category"] else 0
+                elif self.target == PredictionTarget.Rating_Explicit:
+                    label = 1 if "Explicit" in work["tags"]["rating"] else 0
+
                 row = json.dumps(
                     {
-                        "label": 1 if "F/M" in work["tags"]["category"] else 0,
+                        "label": label,
                         "content": work["content"],
                     }
                 )
+
                 if random() < 0.8:
                     train.write(row + "\n")
                 else:
                     test.write(row + "\n")
-                if random() < 0.0001:
+                if random() < 0.001:
                     break
         train.flush()
         test.flush()
@@ -72,22 +91,30 @@ class TrainTestSplit(luigi.Task):
 
 
 class ExtractExcerpts(luigi.Task):
+    """Extract excerpts with specified method."""
 
+    target = luigi.EnumParameter(enum=PredictionTarget)
     method = luigi.Parameter("random")
     num_excerpts = luigi.IntParameter(5)
 
     def output(self):
         return {
             "train": luigi.LocalTarget(
-                os.path.join(ROOT_DIR, f"excerpts/{self.method}_{self.num_excerpts}_train.jsonl")
+                os.path.join(
+                    ROOT_DIR,
+                    f"excerpts/{self.target.value}_{self.method}_{self.num_excerpts}_train.jsonl",
+                )
             ),
             "test": luigi.LocalTarget(
-                os.path.join(ROOT_DIR, f"excerpts/{self.method}_{self.num_excerpts}_test.jsonl")
+                os.path.join(
+                    ROOT_DIR,
+                    f"excerpts/{self.target.value}_{self.method}_{self.num_excerpts}_test.jsonl",
+                )
             ),
         }
 
     def requires(self):
-        return TrainTestSplit()
+        return TrainTestSplit(self.target)
 
     def run(self):
         train = tempfile.NamedTemporaryFile("wt")
@@ -145,17 +172,21 @@ class ExtractExcerpts(luigi.Task):
 
 
 class EvaluteExcerpts(luigi.Task):
+    """Evaluate excerpts generated using the specified method."""
 
+    target = luigi.EnumParameter(enum=PredictionTarget)
     method = luigi.Parameter("random")
     num_excerpts = luigi.IntParameter(5)
 
     def output(self):
         return luigi.LocalTarget(
-            os.path.join(ROOT_DIR, f"results/{self.method}_{self.num_excerpts}.json")
+            os.path.join(
+                ROOT_DIR, f"results/{self.target.value}_{self.method}_{self.num_excerpts}.json"
+            )
         )
 
     def requires(self):
-        return ExtractExcerpts(self.method, self.num_excerpts)
+        return ExtractExcerpts(self.target, self.method, self.num_excerpts)
 
     def run(self):
         model = Pipeline(
@@ -164,7 +195,11 @@ class EvaluteExcerpts(luigi.Task):
                 ("clf", LogisticRegression()),
             ]
         )
-        result = {}
+        result = {
+            "target": self.target.value,
+            "method": self.method,
+            "k": self.num_excerpts,
+        }
 
         with open(self.input()["train"].path, "rt") as fin:
             X, y = [], []
@@ -188,8 +223,22 @@ class EvaluteExcerpts(luigi.Task):
 
 
 class BenchmarkReport(luigi.Task):
+    """Generate a summary report."""
+
     def requires(self):
         return [
-            EvaluteExcerpts("random", 1),
-            EvaluteExcerpts("fastexcerpt", 1),
+            EvaluteExcerpts(PredictionTarget.Category_FM, "random", 1),
+            EvaluteExcerpts(PredictionTarget.Category_FM, "fastexcerpt", 1),
+            EvaluteExcerpts(PredictionTarget.Category_FM, "random", 3),
+            EvaluteExcerpts(PredictionTarget.Category_FM, "fastexcerpt", 3),
+            EvaluteExcerpts(PredictionTarget.Rating_Explicit, "random", 1),
+            EvaluteExcerpts(PredictionTarget.Rating_Explicit, "fastexcerpt", 1),
+            EvaluteExcerpts(PredictionTarget.Rating_Explicit, "random", 3),
+            EvaluteExcerpts(PredictionTarget.Rating_Explicit, "fastexcerpt", 3),
         ]
+
+    def run(self):
+        rows = []
+        for result in self.input():
+            rows.append(json.load(result.open("r")))
+        pd.DataFrame(rows).to_markdown("benchmark/benchmark.md")
