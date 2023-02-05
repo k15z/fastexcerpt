@@ -10,14 +10,18 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
 from tqdm import tqdm
-from random import randint
+from random import choices
 
 
 def sample_excerpts(doc: str, window_size: int, sampling_rate: float) -> typing.List[str]:
-    excerpts = []
     sentences = sent_tokenize(doc)
-    for _ in range(int(len(sentences) * sampling_rate)):
-        i = randint(window_size, len(sentences))
+    assert len(sentences) > window_size
+
+    num_samples = int((len(sentences) - window_size) * sampling_rate)
+    indices = choices(list(range(window_size, len(sentences) + 1)), k=num_samples)
+
+    excerpts = []
+    for i in indices:
         excerpts.append(" ".join(sentences[i - window_size : i]))
     return excerpts
 
