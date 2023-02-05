@@ -33,9 +33,8 @@ fe = FastExcerpt(
 excerpts = fe.excerpts("... a long document ...", k=1)
 ```
 
-### Supervised
-The standard use case is when you have a downstream classification task. You can simply pass
-your data in as two lists of strings.
+The standard use case is when you have a downstream binary classification task. You can simply pass
+your data in as two lists:
 
 ```python
 docs = [
@@ -43,7 +42,7 @@ docs = [
     ... # more documents
 ]
 labels = [
-    "Humor",
+    1,
     ...
 ]
 fe.fit(docs, labels)
@@ -54,17 +53,3 @@ simple classifier on the specified classification task.
 
 Consider an example where you are predicting whether the work should be rated "Explicit" - in 
 this case, the model should learn to select excerpts of text that contain explicit language.
-
-### Unsupervised
-If your data does not have labels, you can still use FastExcerpt.
-
-```python
-fe.fit(docs)
-```
-
-In this case, the model will learn to select excerpts that can be used to tell the works in the
-dataset apart.
-
-Consider an example where you have two documents: Harry Potter and Game of Thrones. The selected 
-excerpts would be passages where - if you just read that one passage, it would be clear which work 
-it came from.
