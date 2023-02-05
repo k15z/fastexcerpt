@@ -33,3 +33,4 @@ extra:
 nav:
   - Home: index.md
   - Roadmap: roadmap.md
+  - Benchmark: benchmark.md

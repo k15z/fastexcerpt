@@ -38,7 +38,7 @@ with bz2.open("/Users/kevz/Downloads/ao3.jsonl.bz2", "rt") as fin:
         if len(work["content"].split(" ")) <= 1000:
             continue
         docs.append(work["content"])
-        if "F/M" in work["tags"]["category"]:
+        if "Explicit" in work["tags"]["rating"]:
             labels.append(1)
         else:
             labels.append(0)
