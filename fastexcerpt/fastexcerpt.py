@@ -18,7 +18,7 @@ def sample_excerpts(doc: str, window_size: int, sampling_rate: float) -> typing.
     assert len(sentences) > window_size
 
     num_samples = int((len(sentences) - window_size) * sampling_rate)
-    indices = choices(list(range(window_size, len(sentences))), k=num_samples)
+    indices = choices(list(range(window_size, len(sentences) + 1)), k=num_samples)
 
     excerpts = []
     for i in indices:
