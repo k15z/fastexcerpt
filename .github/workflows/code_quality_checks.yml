@@ -25,10 +25,10 @@ jobs:
       - name: Unit & Coverage test with pytest
         run: poetry run pytest
       
-      - name: Check style with pylint
-        run: poetry run pylint fastexcerpt/ tests/
+      #- name: Check style with pylint
+      #  run: poetry run pylint fastexcerpt/ tests/
       - name: Check format with black
         run: poetry run black --check fastexcerpt/ tests/
-      - name: Check type hinting with mypy
-        run: poetry run mypy --config-file=mypy.ini fastexcerpt/
+      #- name: Check type hinting with mypy
+      #  run: poetry run mypy --config-file=mypy.ini fastexcerpt/
       

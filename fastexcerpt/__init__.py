@@ -2,6 +2,8 @@
 
 from importlib_metadata import PackageNotFoundError, version
 
+from .fastexcerpt import FastExcerpt
+
 __author__ = "Kevin Alex Zhang"
 __email__ = "hello@kevz.dev"
 
@@ -12,4 +14,8 @@ try:
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 
-from .fastexcerpt import FastExcerpt
+
+__all__ = [
+    "__version__",
+    "FastExcerpt",
+]

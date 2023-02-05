@@ -1,3 +1,4 @@
+"""Main module."""
 import typing
 from collections import Counter
 
