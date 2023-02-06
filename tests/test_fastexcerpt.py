@@ -2,7 +2,7 @@
 
 import nltk
 
-from fastexcerpt import FastExcerpt, SubwordFastExcerpt
+from fastexcerpt import FastExcerpt
 
 nltk.download("punkt")
 
@@ -62,18 +62,6 @@ def test_fastexcerpt_generator_samplling():
 
     fast_excerpt = FastExcerpt(window_size=1, hash_size=10)
     fast_excerpt.fit_iterator(iterator(), sampling_rate=1.0)
-    assert fast_excerpt.excerpts("Hello! This is great. What do you think?", 1) == [
-        "This is great."
-    ]
-
-
-def test_subword_fastexcerpt():
-    docs = [
-        "This is great. Lots of short sentences. Let's go!",
-        "This is horrible. Lots of short sentences. Let's go!",
-    ]
-    fast_excerpt = SubwordFastExcerpt(window_size=1)
-    fast_excerpt.fit(docs, labels=[1, 0])
     assert fast_excerpt.excerpts("Hello! This is great. What do you think?", 1) == [
         "This is great."
     ]
