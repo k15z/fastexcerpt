@@ -179,7 +179,7 @@ class ExtractExcerpts(luigi.Task):
         shutil.move(test.name, self.output()["test"].path)
 
 
-class EvaluteExcerpts(luigi.Task):
+class EvaluateExcerpts(luigi.Task):
     """Evaluate excerpts generated using the specified method."""
 
     target = luigi.EnumParameter(enum=PredictionTarget)
@@ -239,8 +239,8 @@ class BenchmarkReport(luigi.Task):
         for target in [PredictionTarget.Category_FM, PredictionTarget.Rating_Explicit]:
             for num_excerpts in [1, 3, 5, 10]:
                 yield from [
-                    EvaluteExcerpts(target, "random", num_excerpts),
-                    EvaluteExcerpts(target, "fastexcerpt", num_excerpts),
+                    EvaluateExcerpts(target, "random", num_excerpts),
+                    EvaluateExcerpts(target, "fastexcerpt", num_excerpts),
                 ]
 
     def run(self):

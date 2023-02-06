@@ -1,6 +1,5 @@
 """Main module."""
 import typing
-from collections import Counter
 from random import sample
 
 import numpy as np
@@ -9,7 +8,6 @@ from scipy.sparse import vstack
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.pipeline import Pipeline
 from tqdm import tqdm
 
 
