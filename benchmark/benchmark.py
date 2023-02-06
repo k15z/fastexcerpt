@@ -17,22 +17,24 @@ EvaluateExcerpts(config={
 
 And the final report summarizes the performance.
 """
-import os
 import bz2
-import luigi
-import shutil
-import pandas as pd
+import enum
 import json
-from random import random, choices
+import os
+import shutil
 import tempfile
-from tqdm import tqdm
-from fastexcerpt import FastExcerpt
-from fastexcerpt.fastexcerpt import enumerate_excerpts
+from random import choices, random
+
+import luigi
+import pandas as pd
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
-import enum
+from tqdm import tqdm
+
+from fastexcerpt import FastExcerpt
+from fastexcerpt.fastexcerpt import enumerate_excerpts
 
 ROOT_DIR = "/Users/kevz/Downloads/"
 WINDOW_SIZE = 5
@@ -140,23 +142,23 @@ class ExtractExcerpts(luigi.Task):
                     )
 
         elif self.method == "fastexcerpt":
-            with open(self.input()["train"].path, "rt") as fin:
 
-                def iterator():
+            def iterator():
+                with open(self.input()["train"].path, "rt") as fin:
                     for line in fin:
                         work = json.loads(line)
                         yield work["content"], work["label"]
 
-                fe = FastExcerpt(window_size=WINDOW_SIZE, verbose=True)
-                fe.fit_iterator(tqdm(iterator(), "Fit"))
+            fe = FastExcerpt(window_size=WINDOW_SIZE, verbose=True)
+            fe.fit_iterator(tqdm(iterator(), "Fit"))
 
-                for doc, label in tqdm(iterator(), "Predict"):
-                    train.write(
-                        json.dumps(
-                            {"label": label, "text": " ".join(fe.excerpts(doc, self.num_excerpts))}
-                        )
-                        + "\n"
+            for doc, label in tqdm(iterator(), "Predict"):
+                train.write(
+                    json.dumps(
+                        {"label": label, "text": " ".join(fe.excerpts(doc, self.num_excerpts))}
                     )
+                    + "\n"
+                )
 
             with open(self.input()["test"].path, "rt") as fin:
                 for line in tqdm(fin, "Test"):

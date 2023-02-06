@@ -1,25 +1,25 @@
 """Main module."""
 import typing
 from collections import Counter
+from random import sample
 
 import numpy as np
 from bpemb import BPEmb
 from nltk.tokenize import sent_tokenize
+from scipy.sparse import vstack
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
 from tqdm import tqdm
-from random import choices
-from scipy.sparse import vstack
 
 
 def sample_excerpts(doc: str, window_size: int, sampling_rate: float) -> typing.List[str]:
     sentences = sent_tokenize(doc)
     assert len(sentences) > window_size
 
-    num_samples = int((len(sentences) - window_size) * sampling_rate)
-    indices = choices(list(range(window_size, len(sentences) + 1)), k=num_samples)
+    num_samples = int((len(sentences) - window_size + 1) * sampling_rate)
+    indices = sample(list(range(window_size, len(sentences) + 1)), k=num_samples)
 
     excerpts = []
     for i in indices:
