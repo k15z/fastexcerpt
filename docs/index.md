@@ -17,6 +17,10 @@ As an example, consider predicting whether a novel contains "time travel" as a p
    able to achieve good results if it's given enough data, but would be too slow for many types 
    of applications.
 
+A much better alternative would be to add some handcrafted keywords - i.e. search for "time travel"
+as keywords and look at just those excerpts. However, this approach isn't scalable if there are 
+tens of thousands of tags like "time travel".
+
 The goal of `FastExcerpt` is to combine the strengths of these approaches by using fast models to
 efficiently extract relevant excerpts for further analysis.
 

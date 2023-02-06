@@ -1,16 +1,10 @@
 """Test module for fastexcerpt."""
 
 import nltk
-from fastexcerpt import __author__, __email__, __version__, FastExcerpt, SubwordFastExcerpt
+
+from fastexcerpt import FastExcerpt, SubwordFastExcerpt
 
 nltk.download("punkt")
-
-
-def test_project_info():
-    """Test __author__ value."""
-    assert __author__ == "Kevin Alex Zhang"
-    assert __email__ == "hello@kevz.dev"
-    assert __version__ == "0.0.0"
 
 
 def test_fastexcerpt():
@@ -32,6 +26,42 @@ def test_fastexcerpt_with_sampling():
     ]
     fast_excerpt = FastExcerpt(window_size=1, hash_size=10)
     fast_excerpt.fit(docs, labels=[1, 0], sampling_rate=1.0)
+    assert fast_excerpt.excerpts("Hello! This is great. What do you think?", 1) == [
+        "This is great."
+    ]
+
+
+def test_fastexcerpt_generator():
+    docs = [
+        "This is great. Lots of short sentences. Let's go!",
+        "This is horrible. Lots of short sentences. Let's go!",
+    ]
+    labels = [1, 9]
+
+    def iterator():
+        for doc, label in zip(docs, labels):
+            yield doc, label
+
+    fast_excerpt = FastExcerpt(window_size=1, hash_size=10)
+    fast_excerpt.fit_iterator(iterator())
+    assert fast_excerpt.excerpts("Hello! This is great. What do you think?", 1) == [
+        "This is great."
+    ]
+
+
+def test_fastexcerpt_generator_samplling():
+    docs = [
+        "This is great. Lots of short sentences. Let's go!",
+        "This is horrible. Lots of short sentences. Let's go!",
+    ]
+    labels = [1, 9]
+
+    def iterator():
+        for doc, label in zip(docs, labels):
+            yield doc, label
+
+    fast_excerpt = FastExcerpt(window_size=1, hash_size=10)
+    fast_excerpt.fit_iterator(iterator(), sampling_rate=1.0)
     assert fast_excerpt.excerpts("Hello! This is great. What do you think?", 1) == [
         "This is great."
     ]

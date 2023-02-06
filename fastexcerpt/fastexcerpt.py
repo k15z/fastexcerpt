@@ -1,24 +1,25 @@
 """Main module."""
 import typing
 from collections import Counter
+from random import sample
 
 import numpy as np
 from bpemb import BPEmb
 from nltk.tokenize import sent_tokenize
+from scipy.sparse import vstack
 from sklearn.feature_extraction.text import HashingVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
 from tqdm import tqdm
-from random import choices
 
 
 def sample_excerpts(doc: str, window_size: int, sampling_rate: float) -> typing.List[str]:
     sentences = sent_tokenize(doc)
     assert len(sentences) > window_size
 
-    num_samples = int((len(sentences) - window_size) * sampling_rate)
-    indices = choices(list(range(window_size, len(sentences) + 1)), k=num_samples)
+    num_samples = int((len(sentences) - window_size + 1) * sampling_rate)
+    indices = sample(list(range(window_size, len(sentences) + 1)), k=num_samples)
 
     excerpts = []
     for i in indices:
@@ -46,6 +47,7 @@ class FastExcerpt:
         labels: typing.List[int],
         sampling_rate: typing.Optional[float] = None,
     ) -> None:
+        self.vectorizer = HashingVectorizer(n_features=self.hash_size)
         X, y = [], []
         iterator = zip(docs, tqdm(labels)) if self.verbose else zip(docs, labels)
         for doc, label in iterator:
@@ -53,23 +55,42 @@ class FastExcerpt:
                 excerpts = sample_excerpts(doc, self.window_size, sampling_rate)
             else:
                 excerpts = enumerate_excerpts(doc, self.window_size)
-            for excerpt in excerpts:
-                X.append(excerpt)
-                y.append(label)
+            X.append(self.vectorizer.transform(excerpts))
+            y.extend([label] * len(excerpts))
+        X = vstack(X)
+        y = np.array(y)
 
-        self.model = Pipeline(
-            [
-                ("vec", HashingVectorizer(n_features=self.hash_size)),
-                ("clf", LogisticRegression(verbose=1 if self.verbose else 0)),
-            ]
-        )
+        self.model = LogisticRegression(verbose=1 if self.verbose else 0)
+        self.model.fit(X, y)
+        self.mu = np.mean(y)
+        print(roc_auc_score(y, self.model.predict(X)))
+
+    def fit_iterator(
+        self,
+        iterator,
+        sampling_rate: typing.Optional[float] = None,
+    ) -> None:
+        self.vectorizer = HashingVectorizer(n_features=self.hash_size)
+        X, y = [], []
+        for doc, label in iterator:
+            if sampling_rate:
+                excerpts = sample_excerpts(doc, self.window_size, sampling_rate)
+            else:
+                excerpts = enumerate_excerpts(doc, self.window_size)
+            if len(excerpts) > 0:
+                X.append(self.vectorizer.transform(excerpts))
+                y.extend([label] * len(excerpts))
+        X = vstack(X)
+        y = np.array(y)
+
+        self.model = LogisticRegression(verbose=1 if self.verbose else 0)
         self.model.fit(X, y)
         self.mu = np.mean(y)
         print(roc_auc_score(y, self.model.predict(X)))
 
     def excerpts(self, doc: str, num_excerpts: int = 1) -> typing.List[str]:
         excerpts = enumerate_excerpts(doc, self.window_size)
-        y_pred = np.max(self.model.predict_proba(excerpts), axis=1)
+        y_pred = np.max(self.model.predict_proba(self.vectorizer.transform(excerpts)), axis=1)
 
         results = []
         for _ in range(num_excerpts):

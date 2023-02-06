@@ -1,6 +1,6 @@
 On this page, we summarize our results from applying FastExcerpt to an internal dataset of works 
-on Archive of Our Own consisting of 100,000 works that are tagged with various labels by the 
-authors of the works. The lengths of the works range from 10,000 words to over 500,000 words and 
+on Archive of Our Own consisting of ~150,000 works that are tagged with various labels by the 
+authors of the works. The lengths of the works range from 1,000 words to over 500,000 words and 
 we test different methods of extracting 5-sentence excerpts for predicting the tags.
 
 
